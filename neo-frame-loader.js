@@ -45,6 +45,9 @@
       );
     }
     var hasAssetBase = /<base\b[^>]*\bhref\s*=/i.test(html);
+    var audioRuntime = !/\/music-(?:local|v2)\//i.test(sourceUrl)
+      ? '<script src="' + escapeAttribute(resolveUrl("./neo-audio-spectrum-bridge.js?v=20260909-all-audio-v1")) + '"><\/script>'
+      : "";
     var adShieldRuntime = /<script\b[^>]*\bsrc\s*=\s*["'][^"']*neo-ad-shield\.js(?:[?#][^"']*)?["']/i.test(html)
       ? ""
       : '<script src="' + escapeAttribute(resolveUrl("./neo-ad-shield.js?v=20260910-sitewide-v1")) + '"><\/script>';
@@ -58,7 +61,8 @@
       networkRuntime = '<script src="' + escapeAttribute(resolveUrl("./neo-runner-network.js?v=20260831-fast-full-stream-v5")) + '"><\/script>';
     }
     var injection = (hasAssetBase ? "" : '<base href="' + escapeAttribute(baseUrl) + '" target="_self">') +
-      '<meta name="neo-runner" content="nested">' + adShieldRuntime + networkRuntime;
+      '<meta name="neo-source-url" content="' + escapeAttribute(sourceUrl) + '">' +
+      '<meta name="neo-runner" content="nested">' + adShieldRuntime + audioRuntime + networkRuntime;
     if (/<head(?:\s[^>]*)?>/i.test(html)) {
       return html.replace(/<head(?:\s[^>]*)?>/i, function (head) {
         return head + injection;
@@ -133,7 +137,7 @@
     }
     cancel(frame);
 
-    if (!isRunner() && options.forceFetch !== true) {
+    if ((!isRunner() || /\/launch\.svg(?:[?#]|$)/i.test(sourceUrl)) && options.forceFetch !== true) {
       frame.removeAttribute("srcdoc");
       frame.src = sourceUrl;
       return Promise.resolve({ mode: "url", url: sourceUrl });

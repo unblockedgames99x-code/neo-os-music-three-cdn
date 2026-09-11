@@ -40,6 +40,9 @@
     : path.includes('/neo-chat/') ? 'chat'
     : path.includes('/neo-cloud/') ? 'cloud'
     : path.includes('/neo-tv/') ? 'tv'
+    : path.includes('/neo-games/') ? 'games'
+    : path.includes('/neo-ai/') ? 'ai'
+    : path.includes('/neo-youtube/') ? 'youtube'
     : path.includes('/local-browser/') ? 'local-browser'
     : path.includes('/browser-newtab') ? 'browser-newtab'
     : path.includes('/neo-browser/') ? 'browser'
@@ -49,7 +52,7 @@
 
   function normalizedTheme(value) {
     const theme = legacyThemes[value] || value;
-    return knownThemes.has(theme) ? theme : 'graphite';
+    return knownThemes.has(theme) ? theme : 'oled';
   }
 
   function normalizedInterfaceStyle(value) {
@@ -67,7 +70,7 @@
     root.dataset.interfaceStyle = activeInterfaceStyle;
     root.dataset.neoInterfaceStyle = activeInterfaceStyle;
     keepInterfaceStyleSheetLast();
-    document.querySelectorAll('iframe').forEach(frame => sendInterfaceStyle(frame.contentWindow));
+    document.querySelectorAll('iframe').forEach(sendFrameInterface);
     window.dispatchEvent(new CustomEvent('neo-interface-style-change', {detail:{style:activeInterfaceStyle}}));
   }
 
@@ -81,14 +84,36 @@
       ['bg','surface','text','muted','line','accent'].forEach(key => {
         if (palette[key]) root.style.setProperty('--desktop-' + key, palette[key]);
       });
+      const themeColor = document.querySelector('meta[name="theme-color"]');
+      if (themeColor && palette.bg) themeColor.setAttribute('content', palette.bg);
     }
     window.dispatchEvent(new CustomEvent('neo-theme-change', {detail: next}));
-    document.querySelectorAll('iframe').forEach(frame => sendPreferences(frame.contentWindow));
+    document.querySelectorAll('iframe').forEach(sendFramePreferences);
   }
 
   function sendPreferences(target) {
     if (!target) return;
     try { target.postMessage({type:'neo-system-preferences', state:{...activeState}, palette:activePalette && {...activePalette}}, messageTargetOrigin); } catch (_) {}
+  }
+
+  function isProxyFrame(frame) {
+    return !frame || frame.dataset?.neoScramjet === 'true';
+  }
+
+  function sendFrameInterface(frame) {
+    if (isProxyFrame(frame)) return;
+    sendInterfaceStyle(frame.contentWindow);
+  }
+
+  function sendFramePreferences(frame) {
+    if (isProxyFrame(frame)) return;
+    sendPreferences(frame.contentWindow);
+  }
+
+  function syncFrame(frame) {
+    if (isProxyFrame(frame)) return;
+    sendPreferences(frame.contentWindow);
+    sendInterfaceStyle(frame.contentWindow);
   }
 
   let saved = {};
@@ -122,8 +147,8 @@
   });
 
   new MutationObserver(records => records.forEach(record => record.addedNodes.forEach(node => {
-    if (node.matches?.('iframe')) node.addEventListener('load', () => { sendPreferences(node.contentWindow); sendInterfaceStyle(node.contentWindow); });
-    node.querySelectorAll?.('iframe').forEach(frame => frame.addEventListener('load', () => { sendPreferences(frame.contentWindow); sendInterfaceStyle(frame.contentWindow); }));
+    if (node.matches?.('iframe')) node.addEventListener('load', () => syncFrame(node));
+    node.querySelectorAll?.('iframe').forEach(frame => frame.addEventListener('load', () => syncFrame(frame)));
   }))).observe(document.documentElement, {childList:true, subtree:true});
 
   window.NEO_APP_THEME = Object.freeze({apply, applyInterfaceStyle, getTheme: () => root.dataset.neoTheme, getStyle: () => activeInterfaceStyle});
