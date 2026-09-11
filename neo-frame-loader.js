@@ -45,6 +45,9 @@
       );
     }
     var hasAssetBase = /<base\b[^>]*\bhref\s*=/i.test(html);
+    var adShieldRuntime = /<script\b[^>]*\bsrc\s*=\s*["'][^"']*neo-ad-shield\.js(?:[?#][^"']*)?["']/i.test(html)
+      ? ""
+      : '<script src="' + escapeAttribute(resolveUrl("./neo-ad-shield.js?v=20260910-sitewide-v1")) + '"><\/script>';
     var networkRuntime = "";
     if (
       isRunner() &&
@@ -55,7 +58,7 @@
       networkRuntime = '<script src="' + escapeAttribute(resolveUrl("./neo-runner-network.js?v=20260831-fast-full-stream-v5")) + '"><\/script>';
     }
     var injection = (hasAssetBase ? "" : '<base href="' + escapeAttribute(baseUrl) + '" target="_self">') +
-      '<meta name="neo-runner" content="nested">' + networkRuntime;
+      '<meta name="neo-runner" content="nested">' + adShieldRuntime + networkRuntime;
     if (/<head(?:\s[^>]*)?>/i.test(html)) {
       return html.replace(/<head(?:\s[^>]*)?>/i, function (head) {
         return head + injection;
